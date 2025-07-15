@@ -11,41 +11,8 @@ on:
       - master
 
 jobs:
-  security-check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run security checks
-        run: |
-          echo "🔍 Running security checks..."
-          
-          # Check for flag patterns in repository (exclude .github and flag files)
-          if grep -r "FLAG{" . --exclude-dir=.git --exclude-dir=.github --exclude=flag.txt --exclude=flag_inject.example; then
-            echo "❌ FLAG{ patterns found in repository!"
-            exit 1
-          fi
-          
-          # Check if flag.txt is committed
-          if git ls-files | grep -q "^flag\.txt$"; then
-            echo "❌ flag.txt should not be committed!"
-            exit 1
-          fi
-          
-          # Check if flag example exists
-          if [ ! -f "flag_inject.example" ]; then
-            echo "❌ flag_inject.example missing!"
-            exit 1
-          fi
-          
-          echo "✅ Security checks passed!"
-
   build-and-push:
     runs-on: ubuntu-latest
-    needs: security-check
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -59,10 +26,9 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PAT }}
 
-      - name: Create flag file for build
+      - name: Create dummy file for build
         run: |
-          echo "FLAG{SMTP_RELAY_MISCONFIGURATION_EXPLOITED}" > flag.txt
-          cp flag.txt deploy/
+          echo "dummy" > dummy.txt
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -73,28 +39,18 @@ jobs:
           tags: |
             cyberctf/smtp-relay-vuln-lab:latest
             cyberctf/smtp-relay-vuln-lab:${{ github.sha }}
-          secrets: |
-            "flag=flag.txt"
           platforms: linux/amd64,linux/arm64
 
-      - name: Cleanup flag file
+      - name: Cleanup dummy file
         run: |
-          rm -f flag.txt
-          rm -f deploy/flag.txt
+          rm -f dummy.txt
 
   test-lab:
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Create flag file for testing
-        run: |
-          echo "FLAG{SMTP_RELAY_MISCONFIGURATION_EXPLOITED}" > flag.txt
-          cp flag.txt deploy/
 
       - name: Start SMTP lab
         run: |
@@ -126,40 +82,31 @@ jobs:
         run: |
           cd deploy
           docker-compose down
-          rm -f flag.txt
-          rm -f deploy/flag.txt
 
   documentation:
     runs-on: ubuntu-latest
-    needs: security-check
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-
+    needs: build-and-push
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Validate README
         run: |
-          # Check if README contains required sections
           grep -q "Acme Logistics SMTP Relay Vulnerability Lab" README.md
-          grep -q "FLAG{SMTP_RELAY_MISCONFIGURATION_EXPLOITED}" README.md
-          grep -q "DOCKER_BUILDKIT" README.md
+          grep -q "X-Admin-Panel-Password" README.md
 
       - name: Check lab structure
         run: |
-          # Verify required files exist
           [ -f "build/smtp_server.py" ]
           [ -f "build/Dockerfile" ]
           [ -f "deploy/docker-compose.yml" ]
           [ -f "test/auto_solve.py" ]
           [ -f "test/check_smtp.sh" ]
-          [ -f "flag_inject.example" ]
           [ -f ".gitignore" ]
 
       - name: Verify no CTF terminology in business context
         run: |
-          # Check that business language is used instead of CTF terms
-          if grep -r "challenge\|flag\|score\|hack\|exploit" README.md --ignore-case | grep -v "FLAG{SMTP_RELAY_MISCONFIGURATION_EXPLOITED}"; then
+          if grep -r "challenge\|flag\|score\|hack\|exploit" README.md --ignore-case; then
             echo "❌ CTF terminology found in business context!"
             exit 1
           fi 

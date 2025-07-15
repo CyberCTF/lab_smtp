@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# SMTP CTF Lab Test Script
-# Tests comprehensive SMTP functionality
+# Acme Logistics SMTP Server Test Script
+# Tests comprehensive SMTP functionality including the relay vulnerability
 
 echo "=========================================="
-echo "       SMTP CTF Lab Test Suite"
+echo "    Acme Logistics SMTP Server Test Suite"
 echo "=========================================="
 
 SMTP_HOST=${SMTP_HOST:-"localhost"}
@@ -222,9 +222,25 @@ show_summary() {
     fi
 }
 
+# Function to test for the presence of the admin panel password
+check_admin_panel_password() {
+    echo ""
+    echo -e "${YELLOW}=== Checking for X-Admin-Panel-Password in internal email ===${NC}"
+    # Simulate reading the internal email (in a real scenario, this would be via relay/exploit)
+    if grep -q "X-Admin-Panel-Password: 9f8e7d6c" build/mailbox/inbox/it-security.eml; then
+        echo -e "${GREEN}✓ Admin panel password found in internal email!${NC}"
+        PASSED_TESTS=$((PASSED_TESTS + 1))
+        TEST_RESULTS+=("PASS: Admin panel password extraction")
+    else
+        echo -e "${RED}✗ FAILED: Admin panel password not found!${NC}"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+        TEST_RESULTS+=("FAIL: Admin panel password extraction")
+    fi
+}
+
 # Main execution
 main() {
-    echo "Testing SMTP CTF Lab on $SMTP_HOST:$SMTP_PORT"
+    echo "Testing Acme Logistics SMTP Server on $SMTP_HOST:$SMTP_PORT"
     echo "Timestamp: $(date)"
     
     # Check if SMTP server is running
@@ -243,6 +259,7 @@ main() {
     test_email_relay
     test_advanced_features
     test_security_features
+    check_admin_panel_password
     
     # Check mailbox if accessible
     check_mailbox

