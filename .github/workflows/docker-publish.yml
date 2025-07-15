@@ -21,8 +21,8 @@ jobs:
         run: |
           echo "🔍 Running security checks..."
           
-          # Check for flag patterns in repository
-          if grep -r "FLAG{" . --exclude-dir=.git --exclude=flag.txt --exclude=flag_inject.example; then
+          # Check for flag patterns in repository (exclude .github and flag files)
+          if grep -r "FLAG{" . --exclude-dir=.git --exclude-dir=.github --exclude=flag.txt --exclude=flag_inject.example; then
             echo "❌ FLAG{ patterns found in repository!"
             exit 1
           fi

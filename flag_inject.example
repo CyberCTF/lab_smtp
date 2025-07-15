@@ -1,0 +1,5 @@
+# Example flag file for injection during build
+# This file should be replaced with the actual flag during deployment
+# The flag will be injected via Docker BuildKit secret
+
+FLAG{SMTP_RELAY_MISCONFIGURATION_EXPLOITED} 
